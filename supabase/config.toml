@@ -1,0 +1,4 @@
+project_id = "nngzvuzgmcuxmysshhpp"
+
+[functions.nl-to-sql]
+verify_jwt = false

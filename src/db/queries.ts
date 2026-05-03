@@ -26,7 +26,20 @@ export async function createRangeView(conn: any, yearStart: number, yearEnd: num
   `);
 }
 
-export async function getKPIs(conn: any) {
+function getFilterSQL(airlines: string[], origins: string[]) {
+  const parts = [];
+  if (airlines && airlines.length > 0) {
+    const list = airlines.map((a) => `'${a}'`).join(", ");
+    parts.push(`Operating_Airline IN (${list})`);
+  }
+  if (origins && origins.length > 0) {
+    const list = origins.map((o) => `'${o}'`).join(", ");
+    parts.push(`Origin IN (${list})`);
+  }
+  return parts.length > 0 ? `WHERE ${parts.join(" AND ")}` : "";
+}
+
+export async function getKPIs(conn: any, airlines: string[] = [], origins: string[] = []) {
   const table = "current_range";
   const res = await conn.query(`
     SELECT
@@ -35,6 +48,7 @@ export async function getKPIs(conn: any) {
       100.0 * COUNT(*) FILTER (WHERE ArrDel15 = 0 AND Cancelled = 0) / COUNT(*) AS onTimeRate,
       100.0 * COUNT(*) FILTER (WHERE Cancelled = 1) / COUNT(*) AS cancelRate
     FROM ${table}
+    ${getFilterSQL(airlines, origins)}
   `);
 
   const data = res.toArray()?.[0];
@@ -46,7 +60,7 @@ export async function getKPIs(conn: any) {
   };
 }
 
-export async function getTrends(conn: any) {
+export async function getTrends(conn: any, airlines: string[] = [], origins: string[] = []) {
   const table = "current_range";
   const res = await conn.query(
     `
@@ -54,6 +68,7 @@ export async function getTrends(conn: any) {
       strftime(CAST(FlightDate AS DATE), '%Y-%m') AS period,
       AVG(ArrDelay) FILTER (WHERE Cancelled = 0) AS avgDelay
     FROM ${table}
+    ${getFilterSQL(airlines, origins)}
     GROUP BY period
     ORDER BY period
     `
@@ -62,8 +77,9 @@ export async function getTrends(conn: any) {
   return res.toArray();
 }
 
-export async function getAirlines(conn: any) {
+export async function getAirlines(conn: any, airlines: string[] = [], origins: string[] = []) {
   const table = "current_range";
+  const filter = getFilterSQL(airlines, origins);
   const res = await conn.query(
     `
     SELECT
@@ -74,6 +90,7 @@ export async function getAirlines(conn: any) {
       100.0 * COUNT(*) FILTER (WHERE ArrDel15 = 0 AND Cancelled = 0) / COUNT(*) AS onTime,
       100.0 * COUNT(*) FILTER (WHERE Cancelled = 1) / COUNT(*) AS cancel
     FROM ${table}
+    ${filter}
     GROUP BY Operating_Airline
     ORDER BY avgDelay DESC
     `
@@ -82,7 +99,7 @@ export async function getAirlines(conn: any) {
   return res.toArray();
 }
 
-export async function getRoutes(conn: any) {
+export async function getRoutes(conn: any, airlines: string[] = [], origins: string[] = []) {
   const table = "current_range";
   const res = await conn.query(
     `
@@ -93,6 +110,7 @@ export async function getRoutes(conn: any) {
       COUNT(*) AS flights,
       AVG(ArrDelay) FILTER (WHERE Cancelled = 0) AS avgDelay
     FROM ${table}
+    ${getFilterSQL(airlines, origins)}
     GROUP BY origin, dest
     ORDER BY avgDelay DESC
     LIMIT 20
@@ -102,8 +120,9 @@ export async function getRoutes(conn: any) {
   return res.toArray();
 }
 
-export async function getRecovery(conn: any) {
+export async function getRecovery(conn: any, airlines: string[] = [], origins: string[] = []) {
   const table = tableForYears([2019, 2022]);
+  const extraFilter = getFilterSQL(airlines, origins).replace("WHERE", "AND");
   const res = await conn.query(`
     SELECT
       Operating_Airline AS airline,
@@ -113,6 +132,7 @@ export async function getRecovery(conn: any) {
       - AVG(ArrDelay) FILTER (WHERE Year = 2022 AND Cancelled = 0) AS recoveryScore
     FROM ${table}
     WHERE Year IN (2019, 2022)
+    ${extraFilter}
     GROUP BY Operating_Airline
     ORDER BY recoveryScore DESC
   `);

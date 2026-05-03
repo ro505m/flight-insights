@@ -1,75 +1,21 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel,
   getSortedRowModel, useReactTable, type ColumnDef, type SortingState,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useData } from "@/data/useData";
-import type { AirlineStat } from "@/data/types";
-import { cn } from "@/lib/utils";
+import { columns } from "./columns";
 
-function pctBadge(pct: number, goodHigh = true) {
-  const ok = goodHigh ? pct >= 80 : pct <= 2;
-  const warn = goodHigh ? pct >= 70 : pct <= 4;
-  const tone = ok
-    ? "bg-success/15 text-success"
-    : warn
-      ? "bg-warning/15 text-warning"
-      : "bg-destructive/15 text-destructive";
-  return <span className={cn("rounded-md px-2 py-0.5 text-xs font-medium", tone)}>{pct.toFixed(1)}%</span>;
-}
 
 export function AirlineTable() {
   const { airlineStats, loading } = useData();
   const [sorting, setSorting] = useState<SortingState>([{ id: "avgDelay", desc: true }]);
   const [filter, setFilter] = useState("");
-
-  const columns = useMemo<ColumnDef<AirlineStat>[]>(() => [
-    {
-      accessorKey: "airline",
-      header: ({ column }) => (
-        <Button variant="ghost" size="sm" onClick={() => column.toggleSorting()}>
-          Airline <ArrowUpDown className="ml-1 h-3 w-3" />
-        </Button>
-      ),
-      cell: ({ row }) => (
-        <div>
-          <div className="font-semibold">{row.original.airline}</div>
-          {row.original.name ? (
-            <div className="text-xs text-muted-foreground">{row.original.name}</div>
-          ) : null}
-        </div>
-      ),
-    },
-    {
-      accessorKey: "avgDelay",
-      header: ({ column }) => (
-        <Button variant="ghost" size="sm" onClick={() => column.toggleSorting()}>
-          Avg Delay <ArrowUpDown className="ml-1 h-3 w-3" />
-        </Button>
-      ),
-      cell: ({ row }) => {
-        const v = row.original.avgDelay;
-        const tone = v > 12 ? "text-destructive" : v > 5 ? "text-warning" : "text-success";
-        return <span className={cn("font-mono", tone)}>{v >= 0 ? "+" : ""}{v.toFixed(1)} min</span>;
-      },
-    },
-    {
-      accessorKey: "flights",
-      header: ({ column }) => (
-        <Button variant="ghost" size="sm" onClick={() => column.toggleSorting()}>
-          Flights <ArrowUpDown className="ml-1 h-3 w-3" />
-        </Button>
-      ),
-      cell: ({ row }) => <span className="font-mono">{row.original.flights.toLocaleString()}</span>,
-    },
-    { accessorKey: "onTime", header: "On-Time %", cell: ({ row }) => pctBadge(row.original.onTime, true) },
-    { accessorKey: "cancel", header: "Cancel %", cell: ({ row }) => pctBadge(row.original.cancel, false) },
-  ], []);
 
   const table = useReactTable({
     data: airlineStats,

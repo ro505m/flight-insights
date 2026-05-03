@@ -24,12 +24,23 @@ const EMPTY_KPIS = {
   cancelRate: 0,
 };
 
+function cacheKeyForRangeAndFilters(
+  start: number,
+  end: number,
+  airlines: string[],
+  origins: string[],
+) {
+  const a = [...airlines].sort().join(",");
+  const o = [...origins].sort().join(",");
+  return `${start}-${end}|${a}|${o}`;
+}
+
 // مخزن بيانات عالمي مشترك بين جميع المكونات لمنع تكرار الاستعلامات
 const globalCache = new Map<string, any>();
 const globalInflight = new Map<string, Promise<any>>();
 
 export function useData() {
-  const { yearRange } = useFilters();
+  const { yearRange, airlines, origins } = useFilters();
 
   const [conn, setConn] = useState<any>(null);
   const [dbReady, setDbReady] = useState(false);
@@ -80,7 +91,7 @@ export function useData() {
         return;
       }
 
-      const key = `${start}-${end}`;
+      const key = cacheKeyForRangeAndFilters(start, end, airlines, origins);
 
       setLoading(true);
 
@@ -108,10 +119,10 @@ export function useData() {
               await createRangeView(conn, start, end);
 
               // تنفيذ الاستعلامات بشكل تتابعي لتقليل الضغط على المعالج ومنع التجمد
-              const k = await getKPIs(conn);
-              const t = await getTrends(conn);
-              const a = await getAirlines(conn);
-              const r = await getRoutes(conn);
+              const k = await getKPIs(conn, airlines, origins);
+              const t = await getTrends(conn, airlines, origins);
+              const a = await getAirlines(conn, airlines, origins);
+              const r = await getRoutes(conn, airlines, origins);
 
               const payload = {
                 k: k ?? EMPTY_KPIS,
@@ -159,7 +170,7 @@ export function useData() {
     return () => {
       cancelled = true;
     };
-  }, [yearRange, conn, dbFailed]);
+  }, [yearRange, conn, dbFailed, airlines, origins]);
 
   // ---------------- RECOVERY ----------------
   useEffect(() => {
@@ -172,7 +183,7 @@ export function useData() {
       }
 
       try {
-        const recoveryKey = "recovery";
+        const recoveryKey = `recovery|${[...airlines].sort().join(",")}|${[...origins].sort().join(",")}`;
         const cached = globalCache.get(recoveryKey);
         if (cached) {
           if (!cancelled) setRecoveryData(cached);
@@ -184,7 +195,7 @@ export function useData() {
         if (!p) {
           p = (async () => {
             try {
-              const data = await getRecovery(conn);
+              const data = await getRecovery(conn, airlines, origins);
               const payload = data ?? [];
               globalCache.set(recoveryKey, payload);
               return payload;
@@ -208,7 +219,7 @@ export function useData() {
     return () => {
       cancelled = true;
     };
-  }, [conn]);
+  }, [conn, airlines, origins]);
 
   // ---------------- RETURN ----------------
   return {

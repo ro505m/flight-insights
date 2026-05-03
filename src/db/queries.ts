@@ -5,8 +5,7 @@ function tableForRange(yearStart: number, yearEnd: number) {
   const years: number[] = [];
   for (let y = start; y <= end; y++) years.push(y);
 
-  // Each year is its own parquet file. Reading only the requested years avoids
-  // downloading/scanning multi-GB data in the browser.
+
   const files = years.map((y) => `'flights_${y}.parquet'`).join(", ");
   return `read_parquet([${files}])`;
 }
@@ -17,7 +16,7 @@ function tableForYears(years: number[]) {
   return `read_parquet([${files}])`;
 }
 
-// وظيفة لإنشاء View مؤقت لتجنب إعادة قراءة Metadata الملفات في كل استعلام
+
 export async function createRangeView(conn: any, yearStart: number, yearEnd: number) {
   const table = tableForRange(yearStart, yearEnd);
   await conn.query(`

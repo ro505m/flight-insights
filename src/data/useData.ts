@@ -35,7 +35,7 @@ function cacheKeyForRangeAndFilters(
   return `${start}-${end}|${a}|${o}`;
 }
 
-// مخزن بيانات عالمي مشترك بين جميع المكونات لمنع تكرار الاستعلامات
+
 const globalCache = new Map<string, any>();
 const globalInflight = new Map<string, Promise<any>>();
 
@@ -54,7 +54,7 @@ export function useData() {
   const [routeData, setRouteData] = useState<RouteStat[]>([]);
   const [recoveryData, setRecoveryData] = useState<RecoveryRow[]>([]);
 
-  // ---------------- INIT DB (safe mount) ----------------
+
   useEffect(() => {
     let alive = true;
 
@@ -79,7 +79,7 @@ export function useData() {
     };
   }, []);
 
-  // ---------------- MAIN QUERY ----------------
+
   useEffect(() => {
     let cancelled = false;
 
@@ -95,7 +95,7 @@ export function useData() {
 
       setLoading(true);
 
-      // ⚡ CACHE FIRST
+
       const cached = globalCache.get(key);
 
       if (cached) {
@@ -115,10 +115,9 @@ export function useData() {
         if (!p) {
           p = (async () => {
             try {
-              // إنشاء الـ View مرة واحدة فقط لهذا النطاق الزمني
+         
               await createRangeView(conn, start, end);
 
-              // تنفيذ الاستعلامات بشكل تتابعي لتقليل الضغط على المعالج ومنع التجمد
               const k = await getKPIs(conn, airlines, origins);
               const t = await getTrends(conn, airlines, origins);
               const a = await getAirlines(conn, airlines, origins);
@@ -134,11 +133,9 @@ export function useData() {
               globalCache.set(key, payload);
               return payload;
             } finally {
-              // إزالة الاستعلام من قائمة الاستعلامات الجارية بعد اكتماله (سواء بنجاح أو فشل)
               globalInflight.delete(key);
             }
           })();
-          // تخزين الوعد في globalInflight لمنع تكرار الاستعلامات المتزامنة
           globalInflight.set(key, p);
         }
         
@@ -154,7 +151,6 @@ export function useData() {
         console.warn("Query error:", e);
 
         if (!cancelled) {
-          // On query failure, keep zeros/empty rather than mocking.
           setKpiData(EMPTY_KPIS);
           setTrendData([]);
           setAirlineData([]);
@@ -172,7 +168,6 @@ export function useData() {
     };
   }, [yearRange, conn, dbFailed, airlines, origins]);
 
-  // ---------------- RECOVERY ----------------
   useEffect(() => {
     let cancelled = false;
 
@@ -221,7 +216,6 @@ export function useData() {
     };
   }, [conn, airlines, origins]);
 
-  // ---------------- RETURN ----------------
   return {
     loading: loading || (!dbReady && !dbFailed),
     routesLoading: loading,

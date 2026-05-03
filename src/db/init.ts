@@ -8,7 +8,6 @@ const PARQUET_FILES = [
   "flights_2022.parquet",
 ] as const;
 
-// Singleton promise لضمان تشغيل التهيئة مرة واحدة فقط على مستوى التطبيق بالكامل
 let connPromise: Promise<any> | null = null;
 
 export async function initDB() {
@@ -33,11 +32,6 @@ export async function initDB() {
 
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
 
-  // DuckDB-WASM loads remote parquet via HTTP range requests.
-  // Dev servers / proxies sometimes don't behave well for HEAD or Range probing,
-  // which can surface as "file too small to be a Parquet file".
-  // This config makes the HTTP backend more tolerant by allowing full reads
-  // and not assuming HEAD requests are reliable.
   try {
     await db.open({
       filesystem: {
@@ -49,8 +43,6 @@ export async function initDB() {
     console.warn("DuckDB open() config failed:", e);
   }
 
-  // Make parquet accessible to DuckDB in the browser by mapping virtual filenames
-  // to real URLs served from `public/data/*`.
   try {
     const base = new URL("/data/", window.location.href);
     await Promise.all(
@@ -63,16 +55,13 @@ export async function initDB() {
       )
     );
   } catch (e) {
-    // If registration fails (e.g. non-browser env), queries will fail and UI will show empty/zeros.
     console.warn("DuckDB file registration failed:", e);
   }
 
   const conn = await db.connect();
 
-  // Quick sanity check to surface schema/path errors in the browser console.
-  // This keeps the UI logic simple (empty/zero defaults) while still giving us actionable errors.
+  
   try {
-    // نختار عمود واحد فقط بدلاً من * لتقليل استهلاك الذاكرة عند الفحص الأولي
     const res = await conn.query(
       "SELECT FlightDate FROM read_parquet('flights_2018.parquet') LIMIT 1"
     );
